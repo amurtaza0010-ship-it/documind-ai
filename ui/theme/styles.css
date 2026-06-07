@@ -1,0 +1,1075 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ================================================================
+   DocuMind AI — Production Design System
+   ================================================================ */
+
+:root {
+  --dm-bg-base: #09090B;
+  --dm-bg-surface: #18181B;
+  --dm-bg-elevated: #27272A;
+  --dm-bg-glass: rgba(24, 24, 27, 0.72);
+  --dm-border-subtle: rgba(255, 255, 255, 0.08);
+  --dm-border-default: rgba(255, 255, 255, 0.12);
+  --dm-border-strong: rgba(255, 255, 255, 0.18);
+  --dm-text-primary: #FAFAFA;
+  --dm-text-secondary: #A1A1AA;
+  --dm-text-muted: #71717A;
+  --dm-accent: #818CF8;
+  --dm-accent-hover: #A5B4FC;
+  --dm-accent-muted: rgba(129, 140, 248, 0.15);
+  --dm-success: #34D399;
+  --dm-success-muted: rgba(52, 211, 153, 0.12);
+  --dm-warning: #FBBF24;
+  --dm-error: #F87171;
+  --dm-error-muted: rgba(248, 113, 113, 0.12);
+  --dm-code-bg: #1E1E2E;
+  --dm-radius-sm: 6px;
+  --dm-radius-md: 10px;
+  --dm-radius-lg: 14px;
+  --dm-radius-xl: 20px;
+  --dm-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --dm-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35);
+  --dm-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.45);
+  --dm-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --dm-font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  --dm-transition: 200ms ease;
+  --dm-chat-max-width: 900px;
+  --dm-composer-max-width: 900px;
+  --dm-sidebar-width: 320px;
+  --dm-sidebar-width-tablet: 280px;
+}
+
+/* ── Global Reset & Typography Fix ─────────────────────────────── */
+.stApp {
+  background: var(--dm-bg-base) !important;
+  font-family: var(--dm-font-sans) !important;
+  color: var(--dm-text-primary) !important;
+  letter-spacing: normal !important;
+  word-spacing: normal !important;
+}
+
+.stApp * {
+  letter-spacing: normal !important;
+  word-spacing: normal !important;
+}
+
+/* Hide Streamlit chrome — NEVER hide stHeader entirely (contains sidebar toggle) */
+#MainMenu,
+footer {
+  visibility: hidden !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Keep header visible so sidebar collapse/expand control remains accessible */
+header[data-testid="stHeader"] {
+  visibility: visible !important;
+  height: auto !important;
+  min-height: 3rem !important;
+  max-height: 3.5rem !important;
+  overflow: visible !important;
+  background: transparent !important;
+  border-bottom: none !important;
+  z-index: 999900 !important;
+}
+
+/* Hide deploy/status chrome only — preserve sidebar toggle button */
+header[data-testid="stHeader"] [data-testid="stToolbar"],
+header[data-testid="stHeader"] [data-testid="stStatusWidget"],
+header[data-testid="stHeader"] [data-testid="stDecoration"],
+header[data-testid="stHeader"] [data-testid="stHeaderActionElements"] {
+  display: none !important;
+}
+
+/* Ensure sidebar toggle is always clickable */
+button[data-testid="stSidebarCollapseButton"],
+button[data-testid="baseButton-header"] {
+  visibility: visible !important;
+  display: inline-flex !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+/* Main content area only — do NOT apply to sidebar block-container */
+section.main .block-container {
+  padding-top: 1.5rem !important;
+  padding-bottom: 7rem !important;
+  max-width: var(--dm-chat-max-width) !important;
+  width: 100% !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+}
+
+/* Main section flex — sit beside sidebar, never overlap */
+section.main {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  width: auto !important;
+}
+
+section.main > div {
+  max-width: 100% !important;
+}
+
+/* App shell — preserve sidebar + main flex layout */
+[data-testid="stAppViewContainer"] {
+  display: flex !important;
+  flex-direction: row !important;
+  width: 100% !important;
+}
+
+[data-testid="stAppViewContainer"] > section {
+  flex-shrink: 0 !important;
+}
+
+[data-testid="stAppViewContainer"] > section.main {
+  flex: 1 1 auto !important;
+  flex-shrink: 1 !important;
+}
+.dm-app-header {
+  text-align: center;
+  padding: 0.5rem 0 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.dm-app-header h1 {
+  font-size: 1.5rem !important;
+  font-weight: 600 !important;
+  color: var(--dm-text-primary) !important;
+  margin: 0 !important;
+  letter-spacing: -0.02em !important;
+  line-height: 1.3 !important;
+}
+
+.dm-app-header p {
+  font-size: 0.875rem !important;
+  color: var(--dm-text-muted) !important;
+  margin: 0.35rem 0 0 !important;
+  line-height: 1.5 !important;
+}
+
+/* ── Sidebar ───────────────────────────────────────────────────── */
+/*
+ * ROOT CAUSE FIX:
+ * 1. header[data-testid="stHeader"] was hidden (height:0, visibility:hidden),
+ *    removing the sidebar toggle — collapsed sidebars could never reopen.
+ * 2. Streamlit collapses sidebar via translateX(-width) + min/max-width:0.
+ *    We restore explicit width and visibility on desktop/tablet.
+ */
+
+section[data-testid="stSidebar"],
+section.stSidebar {
+  display: flex !important;
+  flex-direction: column !important;
+  visibility: visible !important;
+  overflow: visible !important;
+  background: var(--dm-bg-surface) !important;
+  border-right: 1px solid var(--dm-border-subtle) !important;
+  z-index: 999800 !important;
+  position: relative !important;
+}
+
+/* Desktop — always show sidebar at 320px (override collapsed state) */
+@media (min-width: 769px) {
+  section[data-testid="stSidebar"],
+  section.stSidebar,
+  section[data-testid="stSidebar"][aria-expanded="false"],
+  section.stSidebar[aria-expanded="false"],
+  section[data-testid="stSidebar"][aria-expanded="true"],
+  section.stSidebar[aria-expanded="true"] {
+    min-width: var(--dm-sidebar-width) !important;
+    width: var(--dm-sidebar-width) !important;
+    max-width: var(--dm-sidebar-width) !important;
+    transform: none !important;
+    margin-left: 0 !important;
+    visibility: visible !important;
+  }
+}
+
+/* Tablet — 280px drawer */
+@media (min-width: 481px) and (max-width: 768px) {
+  section[data-testid="stSidebar"],
+  section.stSidebar {
+    min-width: var(--dm-sidebar-width-tablet) !important;
+    width: var(--dm-sidebar-width-tablet) !important;
+    max-width: var(--dm-sidebar-width-tablet) !important;
+  }
+
+  section[data-testid="stSidebar"][aria-expanded="true"],
+  section.stSidebar[aria-expanded="true"] {
+    transform: none !important;
+  }
+}
+
+/* Mobile — collapsible drawer (respect Streamlit collapse) */
+@media (max-width: 480px) {
+  section[data-testid="stSidebar"][aria-expanded="true"],
+  section.stSidebar[aria-expanded="true"] {
+    min-width: var(--dm-sidebar-width-tablet) !important;
+    width: var(--dm-sidebar-width-tablet) !important;
+    max-width: 90vw !important;
+    transform: none !important;
+  }
+}
+
+section[data-testid="stSidebar"] > div,
+section.stSidebar > div {
+  width: 100% !important;
+  min-width: 0 !important;
+  background: var(--dm-bg-surface) !important;
+}
+
+section[data-testid="stSidebar"] > div:first-child,
+section.stSidebar > div:first-child {
+  background: var(--dm-bg-surface) !important;
+}
+
+section[data-testid="stSidebar"] .block-container,
+section.stSidebar .block-container {
+  padding: 1.25rem 1rem 1.5rem !important;
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+[data-testid="stSidebar"] {
+  background: var(--dm-bg-surface) !important;
+  border-right: 1px solid var(--dm-border-subtle) !important;
+}
+
+[data-testid="stSidebar"] > div:first-child {
+  background: var(--dm-bg-surface) !important;
+}
+
+[data-testid="stSidebar"] .block-container {
+  padding: 1.25rem 1rem 1.5rem !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stMarkdown"] p,
+[data-testid="stSidebar"] [data-testid="stMarkdown"] h1,
+[data-testid="stSidebar"] [data-testid="stMarkdown"] h2,
+[data-testid="stSidebar"] [data-testid="stMarkdown"] h3 {
+  color: var(--dm-text-primary) !important;
+}
+
+.dm-sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0.5rem 0 1.25rem;
+  border-bottom: 1px solid var(--dm-border-subtle);
+  margin-bottom: 1rem;
+}
+
+.dm-sidebar-brand-icon {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, var(--dm-accent), #6366F1);
+  border-radius: var(--dm-radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  box-shadow: var(--dm-shadow-sm);
+}
+
+.dm-sidebar-brand-text {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--dm-text-primary);
+  letter-spacing: -0.02em;
+}
+
+.dm-sidebar-section {
+  margin-bottom: 1.25rem;
+}
+
+.dm-sidebar-section-title {
+  font-size: 0.6875rem !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  color: var(--dm-text-muted) !important;
+  margin: 0 0 0.625rem !important;
+}
+
+/* ── File Uploader ─────────────────────────────────────────────── */
+[data-testid="stSidebar"] [data-testid="stFileUploader"] {
+  background: var(--dm-bg-elevated) !important;
+  border: 1.5px dashed var(--dm-border-default) !important;
+  border-radius: var(--dm-radius-lg) !important;
+  padding: 1rem !important;
+  transition: border-color var(--dm-transition), background var(--dm-transition) !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stFileUploader"]:hover {
+  border-color: var(--dm-accent) !important;
+  background: rgba(129, 140, 248, 0.05) !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stFileUploader"] section {
+  padding: 0.5rem !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stFileUploader"] small {
+  color: var(--dm-text-muted) !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] {
+  background: transparent !important;
+}
+
+/* ── Buttons ───────────────────────────────────────────────────── */
+.stButton > button {
+  background: var(--dm-bg-elevated) !important;
+  color: var(--dm-text-primary) !important;
+  border: 1px solid var(--dm-border-default) !important;
+  border-radius: var(--dm-radius-md) !important;
+  font-family: var(--dm-font-sans) !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  padding: 0.5rem 1rem !important;
+  transition: all var(--dm-transition) !important;
+  letter-spacing: normal !important;
+  word-spacing: normal !important;
+}
+
+.stButton > button:hover {
+  border-color: var(--dm-accent) !important;
+  background: var(--dm-accent-muted) !important;
+  color: var(--dm-accent-hover) !important;
+}
+
+.stButton > button:focus-visible {
+  outline: 2px solid var(--dm-accent) !important;
+  outline-offset: 2px !important;
+}
+
+.stButton > button[kind="primary"],
+.stButton > button[data-testid="baseButton-primary"] {
+  background: linear-gradient(135deg, #6366F1, #818CF8) !important;
+  border: none !important;
+  color: white !important;
+  box-shadow: var(--dm-shadow-sm) !important;
+}
+
+.stButton > button[kind="primary"]:hover,
+.stButton > button[data-testid="baseButton-primary"]:hover {
+  background: linear-gradient(135deg, #818CF8, #A5B4FC) !important;
+  color: white !important;
+  box-shadow: var(--dm-shadow-md) !important;
+}
+
+/* ── Selectbox & Input ─────────────────────────────────────────── */
+[data-testid="stSidebar"] .stSelectbox > div > div {
+  background: var(--dm-bg-elevated) !important;
+  border-color: var(--dm-border-default) !important;
+  border-radius: var(--dm-radius-md) !important;
+  color: var(--dm-text-primary) !important;
+}
+
+[data-testid="stSidebar"] .stTextInput > div > div > input {
+  background: var(--dm-bg-elevated) !important;
+  border-color: var(--dm-border-default) !important;
+  border-radius: var(--dm-radius-md) !important;
+  color: var(--dm-text-primary) !important;
+  font-family: var(--dm-font-sans) !important;
+}
+
+[data-testid="stSidebar"] .stTextInput > div > div > input:focus {
+  border-color: var(--dm-accent) !important;
+  box-shadow: 0 0 0 2px var(--dm-accent-muted) !important;
+}
+
+/* ── Document Cards ────────────────────────────────────────────── */
+.dm-doc-card {
+  background: var(--dm-bg-elevated);
+  border: 1px solid var(--dm-border-subtle);
+  border-radius: var(--dm-radius-md);
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  transition: border-color var(--dm-transition), box-shadow var(--dm-transition);
+}
+
+.dm-doc-card:hover {
+  border-color: var(--dm-border-default);
+  box-shadow: var(--dm-shadow-sm);
+}
+
+.dm-doc-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.dm-doc-name {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--dm-text-primary);
+  line-height: 1.4;
+  word-break: break-word;
+  flex: 1;
+}
+
+.dm-doc-meta {
+  font-size: 0.6875rem;
+  color: var(--dm-text-muted);
+  margin-top: 0.25rem;
+  line-height: 1.4;
+}
+
+.dm-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: var(--dm-radius-full, 9999px);
+  white-space: nowrap;
+}
+
+.dm-badge-indexed {
+  background: var(--dm-success-muted);
+  color: var(--dm-success);
+}
+
+.dm-badge-processing {
+  background: var(--dm-accent-muted);
+  color: var(--dm-accent);
+}
+
+.dm-badge-error {
+  background: var(--dm-error-muted);
+  color: var(--dm-error);
+}
+
+.dm-badge-uploading {
+  background: rgba(251, 191, 36, 0.12);
+  color: var(--dm-warning);
+}
+
+/* ── Chat Area ─────────────────────────────────────────────────── */
+.dm-chat-area {
+  width: 100%;
+  max-width: var(--dm-chat-max-width);
+  margin: 0 auto;
+}
+
+/* Chat messages */
+[data-testid="stChatMessage"] {
+  background: transparent !important;
+  border: none !important;
+  padding: 0.75rem 0 !important;
+  animation: dm-fade-in 0.3s ease;
+}
+
+@keyframes dm-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+[data-testid="stChatMessage"] [data-testid="stChatMessageAvatarUser"] {
+  background: linear-gradient(135deg, #6366F1, #818CF8) !important;
+}
+
+[data-testid="stChatMessage"] [data-testid="stChatMessageAvatarAssistant"] {
+  background: var(--dm-bg-elevated) !important;
+  border: 1px solid var(--dm-border-subtle) !important;
+}
+
+/* User message bubble */
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) [data-testid="stChatMessageContent"] {
+  background: var(--dm-bg-elevated) !important;
+  border: 1px solid var(--dm-border-subtle) !important;
+  border-radius: var(--dm-radius-lg) !important;
+  padding: 0.875rem 1.125rem !important;
+}
+
+/* Assistant message — open layout */
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) [data-testid="stChatMessageContent"] {
+  background: transparent !important;
+  padding: 0.25rem 0 !important;
+}
+
+/* ── Markdown Typography ───────────────────────────────────────── */
+[data-testid="stChatMessageContent"] [data-testid="stMarkdown"],
+[data-testid="stChatMessageContent"] [data-testid="stMarkdownContainer"] {
+  font-family: var(--dm-font-sans) !important;
+  font-size: 0.9375rem !important;
+  line-height: 1.7 !important;
+  color: var(--dm-text-primary) !important;
+  letter-spacing: normal !important;
+  word-spacing: normal !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+}
+
+[data-testid="stChatMessageContent"] [data-testid="stMarkdown"] p {
+  margin: 0 0 0.875rem 0 !important;
+  line-height: 1.7 !important;
+  letter-spacing: normal !important;
+  word-spacing: normal !important;
+}
+
+[data-testid="stChatMessageContent"] [data-testid="stMarkdown"] p:last-child {
+  margin-bottom: 0 !important;
+}
+
+[data-testid="stChatMessageContent"] [data-testid="stMarkdown"] h1,
+[data-testid="stChatMessageContent"] [data-testid="stMarkdown"] h2,
+[data-testid="stChatMessageContent"] [data-testid="stMarkdown"] h3,
+[data-testid="stChatMessageContent"] [data-testid="stMarkdown"] h4 {
+  font-weight: 600 !important;
+  color: var(--dm-text-primary) !important;
+  margin: 1.25rem 0 0.625rem !important;
+  line-height: 1.35 !important;
+  letter-spacing: -0.01em !important;
+}
+
+[data-testid="stChatMessageContent"] [data-testid="stMarkdown"] h1 { font-size: 1.375rem !important; }
+[data-testid="stChatMessageContent"] [data-testid="stMarkdown"] h2 { font-size: 1.1875rem !important; }
+[data-testid="stChatMessageContent"] [data-testid="stMarkdown"] h3 { font-size: 1.0625rem !important; }
+
+[data-testid="stChatMessageContent"] [data-testid="stMarkdown"] ul,
+[data-testid="stChatMessageContent"] [data-testid="stMarkdown"] ol {
+  margin: 0.5rem 0 0.875rem !important;
+  padding-left: 1.5rem !important;
+}
+
+[data-testid="stChatMessageContent"] [data-testid="stMarkdown"] li {
+  margin-bottom: 0.375rem !important;
+  line-height: 1.65 !important;
+}
+
+[data-testid="stChatMessageContent"] [data-testid="stMarkdown"] li > p {
+  margin-bottom: 0.25rem !important;
+}
+
+/* Code blocks */
+[data-testid="stChatMessageContent"] [data-testid="stMarkdown"] code {
+  font-family: var(--dm-font-mono) !important;
+  font-size: 0.8125rem !important;
+  background: var(--dm-code-bg) !important;
+  color: #E2E8F0 !important;
+  padding: 0.15em 0.4em !important;
+  border-radius: var(--dm-radius-sm) !important;
+  border: 1px solid var(--dm-border-subtle) !important;
+  letter-spacing: normal !important;
+  word-spacing: normal !important;
+}
+
+[data-testid="stChatMessageContent"] [data-testid="stMarkdown"] pre {
+  background: var(--dm-code-bg) !important;
+  border: 1px solid var(--dm-border-subtle) !important;
+  border-radius: var(--dm-radius-md) !important;
+  padding: 1rem !important;
+  margin: 0.75rem 0 !important;
+  overflow-x: auto !important;
+}
+
+[data-testid="stChatMessageContent"] [data-testid="stMarkdown"] pre code {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  font-size: 0.8125rem !important;
+  line-height: 1.6 !important;
+}
+
+/* Tables */
+[data-testid="stChatMessageContent"] [data-testid="stMarkdown"] table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  margin: 0.75rem 0 !important;
+  font-size: 0.875rem !important;
+}
+
+[data-testid="stChatMessageContent"] [data-testid="stMarkdown"] th {
+  background: var(--dm-bg-elevated) !important;
+  color: var(--dm-text-primary) !important;
+  font-weight: 600 !important;
+  padding: 0.625rem 0.875rem !important;
+  border: 1px solid var(--dm-border-subtle) !important;
+  text-align: left !important;
+}
+
+[data-testid="stChatMessageContent"] [data-testid="stMarkdown"] td {
+  padding: 0.625rem 0.875rem !important;
+  border: 1px solid var(--dm-border-subtle) !important;
+  color: var(--dm-text-secondary) !important;
+}
+
+[data-testid="stChatMessageContent"] [data-testid="stMarkdown"] tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.02) !important;
+}
+
+/* Blockquotes / citations */
+[data-testid="stChatMessageContent"] [data-testid="stMarkdown"] blockquote {
+  border-left: 3px solid var(--dm-accent) !important;
+  margin: 0.75rem 0 !important;
+  padding: 0.5rem 0 0.5rem 1rem !important;
+  color: var(--dm-text-secondary) !important;
+  background: var(--dm-accent-muted) !important;
+  border-radius: 0 var(--dm-radius-sm) var(--dm-radius-sm) 0 !important;
+}
+
+/* Links */
+[data-testid="stChatMessageContent"] [data-testid="stMarkdown"] a {
+  color: var(--dm-accent) !important;
+  text-decoration: none !important;
+}
+
+[data-testid="stChatMessageContent"] [data-testid="stMarkdown"] a:hover {
+  color: var(--dm-accent-hover) !important;
+  text-decoration: underline !important;
+}
+
+/* Strong / em */
+[data-testid="stChatMessageContent"] [data-testid="stMarkdown"] strong {
+  font-weight: 600 !important;
+  color: var(--dm-text-primary) !important;
+}
+
+/* ── Chat Composer (stChatInput) ───────────────────────────────── */
+/*
+ * ROOT CAUSE FIX:
+ * Previous CSS set max-width on [data-testid="stChatInput"] > div WITHOUT
+ * width: 100%, so the composer shrank to intrinsic/min-content (~200-300px).
+ * Streamlit tokenizes the composer as nested flex containers; all wrapper
+ * levels must be full-width, with max-width only on the inner pill.
+ */
+
+/* Bottom dock — every Streamlit wrapper must span the main column */
+[data-testid="stBottom"],
+[data-testid="stBottomBlock"],
+[data-testid="stBottomBlockContainer"],
+.stBottom,
+section.main [data-testid="stVerticalBlock"]:has([data-testid="stChatInput"]),
+[data-testid="stElementContainer"]:has([data-testid="stChatInput"]),
+div[class*="stChatInput"] {
+  width: 100% !important;
+  max-width: 100% !important;
+  transform: none !important;
+}
+
+[data-testid="stBottomBlockContainer"],
+[data-testid="stBottom"] {
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+  box-sizing: border-box !important;
+}
+
+/* Outer chat input shell — full width of main column */
+.stChatInput,
+[data-testid="stChatInput"] {
+  width: 100% !important;
+  max-width: 100% !important;
+  background: linear-gradient(to top, var(--dm-bg-base) 80%, transparent) !important;
+  border-top: 1px solid var(--dm-border-subtle) !important;
+  padding: 0.75rem 1rem 1.25rem !important;
+  box-sizing: border-box !important;
+  transform: none !important;
+  position: sticky !important;
+  bottom: 0 !important;
+  z-index: 100 !important;
+}
+
+/* Composer pill — centered, full available width up to 900px */
+.stChatInput > div,
+[data-testid="stChatInput"] > div {
+  width: 100% !important;
+  max-width: var(--dm-composer-max-width) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  background: var(--dm-bg-elevated) !important;
+  border: 1px solid var(--dm-border-default) !important;
+  border-radius: var(--dm-radius-xl) !important;
+  box-shadow: var(--dm-shadow-md) !important;
+  box-sizing: border-box !important;
+  padding: 0.625rem 0.875rem !important;
+  transition: border-color var(--dm-transition), box-shadow var(--dm-transition) !important;
+  transform: none !important;
+  position: relative !important;
+}
+
+.stChatInput > div:focus-within,
+[data-testid="stChatInput"] > div:focus-within {
+  border-color: var(--dm-accent) !important;
+  box-shadow: var(--dm-shadow-md), 0 0 0 3px var(--dm-accent-muted) !important;
+}
+
+/* Flex row: textarea + send button */
+.stChatInput > div > div:last-child,
+[data-testid="stChatInput"] > div > div:last-child {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-end !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  gap: 0.5rem !important;
+  flex-wrap: nowrap !important;
+}
+
+/* Textarea wrapper — grow to fill space */
+.stChatInput > div > div:last-child > div:first-child,
+[data-testid="stChatInput"] > div > div:last-child > div:first-child {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  width: auto !important;
+  max-width: none !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* Textarea — full width of its flex cell */
+[data-testid="stChatInputTextArea"],
+[data-testid="stChatInput"] textarea {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  font-family: var(--dm-font-sans) !important;
+  font-size: 0.9375rem !important;
+  line-height: 1.5 !important;
+  color: var(--dm-text-primary) !important;
+  letter-spacing: normal !important;
+  word-spacing: normal !important;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  resize: none !important;
+  padding: 0.375rem 0 !important;
+  box-shadow: none !important;
+  field-sizing: content !important;
+}
+
+[data-testid="stChatInputTextArea"]::placeholder,
+[data-testid="stChatInput"] textarea::placeholder {
+  color: var(--dm-text-muted) !important;
+}
+
+/* Button group — pinned right */
+.stChatInput > div > div:last-child > div:last-child,
+[data-testid="stChatInput"] > div > div:last-child > div:last-child {
+  flex: 0 0 auto !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 0.375rem !important;
+  margin-left: auto !important;
+}
+
+/* Send button */
+[data-testid="stChatInputSubmitButton"] {
+  flex-shrink: 0 !important;
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  min-height: 36px !important;
+  border-radius: var(--dm-radius-md) !important;
+  background: linear-gradient(135deg, #6366F1, #818CF8) !important;
+  color: white !important;
+  border: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: background var(--dm-transition), transform var(--dm-transition) !important;
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
+  transform: none !important;
+}
+
+[data-testid="stChatInputSubmitButton"]:hover:not(:disabled) {
+  background: linear-gradient(135deg, #818CF8, #A5B4FC) !important;
+}
+
+[data-testid="stChatInputSubmitButton"]:disabled {
+  opacity: 0.4 !important;
+  cursor: not-allowed !important;
+}
+
+/* Remove Streamlit base-web textarea container constraints */
+[data-testid="stChatInput"] [data-baseweb="textarea"],
+[data-testid="stChatInput"] [data-baseweb="base-input"] {
+  width: 100% !important;
+  min-width: 0 !important;
+  background: transparent !important;
+}
+
+[data-testid="stChatInput"] [data-baseweb="textarea"] > div,
+[data-testid="stChatInput"] [data-baseweb="base-input"] > div {
+  width: 100% !important;
+  min-width: 0 !important;
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  [data-testid="stChatInput"] {
+    padding: 0.5rem 0.75rem 1rem !important;
+  }
+
+  .stChatInput > div,
+  [data-testid="stChatInput"] > div {
+    max-width: 100% !important;
+    border-radius: var(--dm-radius-lg) !important;
+  }
+}
+
+/* ── Welcome Screen ────────────────────────────────────────────── */
+.dm-welcome {
+  text-align: center;
+  padding: 3rem 1rem 2rem;
+  max-width: 640px;
+  margin: 0 auto;
+  animation: dm-fade-in 0.5s ease;
+}
+
+.dm-welcome-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 1.25rem;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(129, 140, 248, 0.1));
+  border: 1px solid var(--dm-border-subtle);
+  border-radius: var(--dm-radius-xl);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.75rem;
+  box-shadow: var(--dm-shadow-md);
+}
+
+.dm-welcome h2 {
+  font-size: 1.5rem !important;
+  font-weight: 600 !important;
+  color: var(--dm-text-primary) !important;
+  margin: 0 0 0.5rem !important;
+  letter-spacing: -0.02em !important;
+}
+
+.dm-welcome p {
+  font-size: 0.9375rem !important;
+  color: var(--dm-text-secondary) !important;
+  line-height: 1.6 !important;
+  margin: 0 0 2rem !important;
+}
+
+/* Suggested prompts */
+.dm-prompt-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.625rem;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+@media (max-width: 640px) {
+  .dm-prompt-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Source Citations ──────────────────────────────────────────── */
+.dm-sources {
+  margin-top: 0.875rem;
+  padding: 0.75rem 1rem;
+  background: var(--dm-bg-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--dm-border-subtle);
+  border-radius: var(--dm-radius-md);
+}
+
+.dm-sources-title {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--dm-text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.dm-source-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--dm-text-secondary);
+  padding: 0.25rem 0;
+  line-height: 1.4;
+}
+
+.dm-source-icon {
+  color: var(--dm-accent);
+  flex-shrink: 0;
+}
+
+/* ── Message Actions ───────────────────────────────────────────── */
+.dm-msg-actions {
+  display: flex;
+  gap: 0.375rem;
+  margin-top: 0.625rem;
+  opacity: 0.6;
+  transition: opacity var(--dm-transition);
+}
+
+.dm-msg-actions:hover {
+  opacity: 1;
+}
+
+/* ── Typing Indicator ──────────────────────────────────────────── */
+.dm-cursor {
+  display: inline-block;
+  color: var(--dm-accent);
+  animation: dm-blink 0.8s step-end infinite;
+  font-weight: 300;
+}
+
+@keyframes dm-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.dm-typing-dots {
+  display: inline-flex;
+  gap: 4px;
+  padding: 0.5rem 0;
+}
+
+.dm-typing-dots span {
+  width: 6px;
+  height: 6px;
+  background: var(--dm-text-muted);
+  border-radius: 50%;
+  animation: dm-dot-bounce 1.4s ease-in-out infinite;
+}
+
+.dm-typing-dots span:nth-child(2) { animation-delay: 0.16s; }
+.dm-typing-dots span:nth-child(3) { animation-delay: 0.32s; }
+
+@keyframes dm-dot-bounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+/* ── Alerts / Status ───────────────────────────────────────────── */
+[data-testid="stAlert"] {
+  border-radius: var(--dm-radius-md) !important;
+  border: 1px solid var(--dm-border-subtle) !important;
+  font-size: 0.875rem !important;
+}
+
+/* ── Dividers ──────────────────────────────────────────────────── */
+[data-testid="stSidebar"] hr {
+  border-color: var(--dm-border-subtle) !important;
+  margin: 1rem 0 !important;
+}
+
+/* ── Scrollbar ─────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--dm-border-strong);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--dm-text-muted);
+}
+
+/* ── Responsive ────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  section.main .block-container {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+
+  [data-testid="stChatMessage"] [data-testid="stChatMessageContent"] {
+    max-width: calc(100vw - 80px) !important;
+  }
+
+  .dm-welcome {
+    padding: 2rem 0.5rem 1.5rem;
+  }
+}
+
+/* ── Upload Progress ───────────────────────────────────────────── */
+.dm-upload-progress {
+  background: var(--dm-bg-elevated);
+  border: 1px solid var(--dm-border-subtle);
+  border-radius: var(--dm-radius-md);
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.dm-upload-progress-bar {
+  height: 4px;
+  background: var(--dm-border-subtle);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 0.5rem;
+}
+
+.dm-upload-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6366F1, #818CF8);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* ── Empty State ───────────────────────────────────────────────── */
+.dm-empty-state {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--dm-text-muted);
+  font-size: 0.875rem;
+}
+
+/* ── Session list ──────────────────────────────────────────────── */
+.dm-session-item {
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--dm-radius-md);
+  font-size: 0.8125rem;
+  color: var(--dm-text-secondary);
+  cursor: pointer;
+  transition: background var(--dm-transition);
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dm-session-item:hover {
+  background: var(--dm-bg-elevated);
+}
+
+.dm-session-item-active {
+  background: var(--dm-accent-muted);
+  color: var(--dm-accent-hover);
+}
+
+/* ── Focus accessibility ───────────────────────────────────────── */
+*:focus-visible {
+  outline: 2px solid var(--dm-accent) !important;
+  outline-offset: 2px !important;
+}
+
+/* ── Spinner override ──────────────────────────────────────────── */
+.stSpinner > div {
+  border-top-color: var(--dm-accent) !important;
+}
