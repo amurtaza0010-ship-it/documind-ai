@@ -8,27 +8,27 @@ A production-ready RAG chatbot with **Hybrid Search + Cross-Encoder Reranker** f
 |---------|----|----|
 | Search | FAISS semantic only | **BM25 + FAISS Hybrid** |
 | Reranking | None | **Cross-Encoder (ms-marco-MiniLM-L-6-v2)** |
-| Chunk size | 1000 tokens | **1500 tokens** |
-| Retrieval k | 6 | **10 → reranked to 5** |
-| LLM models | Mixed (some paid) | **Free models only** |
-| Context history | 6 turns | **8 turns** |
+| Chunk size | 1000 tokens | **900 tokens** |
+| Retrieval k | 6 | **8 → reranked to 4** |
+| LLM Provider | OpenRouter (paid credits) | **Groq (free & ultra-fast)** |
+| Context history | 6 turns | **6 turns** |
 
 ## Architecture
 
 ```
 PDF Upload
   → PyMuPDF + pdfplumber extraction
-  → RecursiveCharacterTextSplitter (1500 / 300 overlap)
-  → BAAI/bge-small-en-v1.5 embeddings
+  → RecursiveCharacterTextSplitter (900 / 200 overlap)
+  → BAAI/bge-base-en-v1.5 embeddings
   → FAISS index (persisted)
   → BM25 index (persisted)
 
 Query
-  → BM25 keyword search (k=10)
-  → FAISS MMR semantic search (k=10)
+  → BM25 keyword search (k=8)
+  → FAISS MMR semantic search (k=8)
   → Merge & deduplicate
-  → CrossEncoder reranker → top 5
-  → OpenRouter LLM (streaming)
+  → CrossEncoder reranker → top 4
+  → Groq LLM (streaming, ultra-fast)
   → Streamlit frontend
 ```
 
@@ -38,7 +38,7 @@ Query
 
 ```bash
 python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
+.\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
@@ -46,8 +46,8 @@ pip install -r requirements.txt
 
 ```bash
 cp .env.example .env
-# Open .env and set your OPENROUTER_API_KEY
-# Get a free key at: https://openrouter.ai/keys
+# Open .env and set your GROQ_API_KEY
+# Get a free key at: https://console.groq.com
 ```
 
 ### 3. Start backend
@@ -66,15 +66,14 @@ streamlit run app.py
 
 Open: http://localhost:8501
 
-## Free Models Available
+## Available Models (Groq — All Free)
 
-| Model | Provider | Context | Notes |
-|-------|----------|---------|-------|
-| deepseek/deepseek-chat-v3-0324:free | DeepSeek | 128k | **Recommended default** |
-| meta-llama/llama-3.3-70b-instruct:free | Meta | 128k | Very capable |
-| google/gemini-2.0-flash-exp:free | Google | 1M | Best for long docs |
-| mistralai/mistral-7b-instruct:free | Mistral | 32k | Lightweight |
-| qwen/qwen3-8b:free | Alibaba | 32k | Multilingual |
+| Model | Context | Notes |
+|-------|---------|-------|
+| llama-3.1-8b-instant | 128k | **Recommended default — fastest** |
+| llama3-8b-8192 | 8k | Fast and reliable |
+| gemma2-9b-it | 8k | Good quality |
+| mixtral-8x7b-32768 | 32k | Strong reasoning, larger context |
 
 ## Project Structure
 
@@ -87,7 +86,7 @@ documind_v2/
 │   │   └── pipeline.py          # Hybrid search + reranker
 │   ├── services/
 │   │   ├── pdf_processor.py     # Dual PDF extraction
-│   │   └── llm_service.py       # OpenRouter streaming
+│   │   └── llm_service.py       # Groq streaming
 │   └── main.py                  # FastAPI app
 ├── app.py                       # Streamlit frontend
 ├── requirements.txt

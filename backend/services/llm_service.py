@@ -1,8 +1,9 @@
 """
-LLM Service v3
---------------
-Production-style OpenRouter integration
+LLM Service v3 — Groq Edition
+------------------------------
+Groq API integration (ultra-fast inference)
 Optimized for RAG-based PDF QA
+Model: llama-3.1-8b-instant (default) — blazing fast & free
 """
 
 import httpx
@@ -19,33 +20,46 @@ logger = logging.getLogger(__name__)
 _DIAGNOSTIC_CHUNK_LIMIT = 50
 
 # =========================================================
-# MODELS
+# GROQ CONFIG
 # =========================================================
 
-FREE_MODELS = [
+GROQ_BASE_URL  = "https://api.groq.com/openai/v1"
+DEFAULT_MODEL  = "llama-3.1-8b-instant"
+MAX_TOKENS     = 1024
+TEMPERATURE    = 0.1
 
+# =========================================================
+# AVAILABLE GROQ MODELS
+# =========================================================
+
+GROQ_MODELS = [
     {
-        "id": "openai/gpt-4.1-mini",
-        "name": "GPT-4.1 Mini",
-        "provider": "OpenAI",
+        "id": "llama-3.1-8b-instant",
+        "name": "Llama 3.1 8B Instant",
+        "provider": "Groq",
         "context": "128k",
-        "note": "Best overall quality",
+        "note": "Fastest — recommended for RAG",
     },
-
     {
-        "id": "deepseek/deepseek-chat-v3-0324:free",
-        "name": "DeepSeek V3",
-        "provider": "DeepSeek",
-        "context": "128k",
-        "note": "Strong free model",
+        "id": "llama3-8b-8192",
+        "name": "Llama 3 8B",
+        "provider": "Groq",
+        "context": "8k",
+        "note": "Fast and reliable",
     },
-
     {
-        "id": "meta-llama/llama-3.3-70b-instruct:free",
-        "name": "Llama 3.3 70B",
-        "provider": "Meta",
-        "context": "128k",
-        "note": "Good reasoning",
+        "id": "gemma2-9b-it",
+        "name": "Gemma 2 9B",
+        "provider": "Groq",
+        "context": "8k",
+        "note": "Good quality free model",
+    },
+    {
+        "id": "mixtral-8x7b-32768",
+        "name": "Mixtral 8x7B",
+        "provider": "Groq",
+        "context": "32k",
+        "note": "Strong reasoning, larger context",
     },
 ]
 
@@ -83,14 +97,14 @@ class LLMService:
 
     def __init__(self):
 
-        self.api_key = settings.openrouter_api_key
-        self.base_url = settings.openrouter_base_url
-        self.model = settings.openrouter_model or "openai/gpt-4.1-mini"
+        self.api_key  = settings.groq_api_key
+        self.base_url = GROQ_BASE_URL
+        self.model    = DEFAULT_MODEL
 
         logger.info(
-            "LLMService initialized — model=%s, max_tokens=%d",
+            "LLMService initialized — Groq | model=%s | max_tokens=%d",
             self.model,
-            settings.max_tokens,
+            MAX_TOKENS,
         )
 
     # =====================================================
@@ -99,60 +113,46 @@ class LLMService:
 
     def _validate_config(self) -> Optional[str]:
         """
-        Validate OpenRouter configuration before sending requests.
-        Returns a user-friendly error message, or None if config is valid.
+        Validate Groq config before sending requests.
+        Returns error message or None if OK.
         """
         if not self.api_key or not self.api_key.strip():
             return (
-                "OpenRouter API key is not configured. "
-                "Set OPENROUTER_API_KEY in your .env file."
+                "Groq API key is not configured. "
+                "Add GROQ_API_KEY in your .env file."
             )
-
-        if settings.max_tokens < 1:
-            return "Invalid max_tokens setting. MAX_TOKENS must be at least 1."
-
-        if settings.max_tokens > 8192:
-            logger.warning(
-                "max_tokens=%d is very high and may cause credit errors on OpenRouter.",
-                settings.max_tokens,
-            )
-
         return None
 
     @staticmethod
-    def _user_facing_openrouter_error(status_code: int, error_text: str) -> str:
+    def _user_facing_groq_error(status_code: int, error_text: str) -> str:
         """
-        Map OpenRouter HTTP errors to clean user messages.
-        Full technical details are logged separately — never shown to users.
+        Map Groq HTTP errors to clean user messages.
         """
         try:
-            payload = json.loads(error_text)
-            raw_msg = payload.get("error", {}).get("message", error_text)
+            payload  = json.loads(error_text)
+            raw_msg  = payload.get("error", {}).get("message", error_text)
         except (json.JSONDecodeError, AttributeError, TypeError):
             raw_msg = error_text
 
         logger.error(
-            "OpenRouter HTTP %d — raw response: %s",
+            "Groq HTTP %d — raw response: %s",
             status_code,
             raw_msg,
         )
 
-        if status_code == 402:
-            return (
-                "OpenRouter account has insufficient credits. "
-                "Please reduce max_tokens or add credits."
-            )
         if status_code == 401:
             return (
-                "OpenRouter API key is invalid or expired. "
-                "Check OPENROUTER_API_KEY in your .env file."
+                "Groq API key is invalid or expired. "
+                "Check GROQ_API_KEY in your .env file."
             )
         if status_code == 429:
-            return "OpenRouter rate limit reached. Please wait a moment and try again."
+            return "Groq rate limit reached. Please wait a moment and try again."
+        if status_code == 413:
+            return "Request too large. Try reducing the document context or question length."
         if status_code >= 500:
-            return "OpenRouter service is temporarily unavailable. Please try again later."
+            return "Groq service is temporarily unavailable. Please try again later."
 
-        return f"OpenRouter request failed (HTTP {status_code}). Please try again."
+        return f"Groq request failed (HTTP {status_code}). Please try again."
 
     # =====================================================
     # BUILD CONTEXT
@@ -170,17 +170,9 @@ class LLMService:
 
         for i, (doc, score) in enumerate(retrieved_docs, start=1):
 
-            source = doc.metadata.get(
-                "source",
-                "Unknown"
-            )
-
-            page = doc.metadata.get(
-                "page",
-                "?"
-            )
-
-            chunk = doc.page_content.strip()
+            source = doc.metadata.get("source", "Unknown")
+            page   = doc.metadata.get("page", "?")
+            chunk  = doc.page_content.strip()
 
             context_parts.append(
                 f"""
@@ -205,7 +197,7 @@ Content:
         query: str,
         context: str,
         chat_history: List[Dict[str, str]],
-    ):
+    ) -> List[Dict[str, str]]:
 
         messages = [
             {
@@ -214,15 +206,14 @@ Content:
             }
         ]
 
-        # LAST 6 CHAT TURNS
+        # Last 6 chat turns
         for turn in chat_history[-6:]:
-
             messages.append({
                 "role": turn["role"],
                 "content": turn["content"]
             })
 
-        # USER PROMPT
+        # User prompt with RAG context
         user_prompt = f"""
 Use the following document context to answer the user's question.
 
@@ -261,48 +252,37 @@ Instructions:
 
         config_error = self._validate_config()
         if config_error:
-            logger.error("OpenRouter config validation failed: %s", config_error)
+            logger.error("Groq config validation failed: %s", config_error)
             yield f"⚠️ {config_error}"
             return
 
         model = model or self.model
 
-        context = self._build_context(
-            retrieved_docs
-        )
-
-        messages = self._build_messages(
-            query,
-            context,
-            chat_history,
-        )
+        context  = self._build_context(retrieved_docs)
+        messages = self._build_messages(query, context, chat_history)
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
-            "HTTP-Referer": "https://documind.ai",
-            "X-Title": "DocuMind AI",
         }
 
         payload = {
             "model": model,
             "messages": messages,
-            "max_tokens": settings.max_tokens,
-            "temperature": settings.temperature,
+            "max_tokens": MAX_TOKENS,
+            "temperature": TEMPERATURE,
             "stream": True,
         }
 
         logger.info(
-            "OpenRouter request — model=%s, max_tokens=%d",
+            "Groq request — model=%s, max_tokens=%d",
             model,
-            settings.max_tokens,
+            MAX_TOKENS,
         )
 
         try:
 
-            async with httpx.AsyncClient(
-                timeout=300.0
-            ) as client:
+            async with httpx.AsyncClient(timeout=60.0) as client:
 
                 async with client.stream(
                     "POST",
@@ -312,18 +292,16 @@ Instructions:
                 ) as resp:
 
                     if resp.status_code != 200:
-
                         error_body = await resp.aread()
                         error_text = error_body.decode(errors="ignore")
-
-                        user_msg = self._user_facing_openrouter_error(
+                        user_msg   = self._user_facing_groq_error(
                             resp.status_code,
                             error_text,
                         )
                         yield f"⚠️ {user_msg}"
                         return
 
-                    # STREAM TOKENS — yield content verbatim, never strip
+                    # Stream tokens — same SSE format as OpenAI/OpenRouter
                     chunk_idx = 0
                     async for line in resp.aiter_lines():
 
@@ -336,7 +314,6 @@ Instructions:
                             break
 
                         try:
-
                             chunk = json.loads(data)
 
                             content = (
@@ -350,7 +327,7 @@ Instructions:
 
                             if chunk_idx < _DIAGNOSTIC_CHUNK_LIMIT:
                                 logger.info(
-                                    "OpenRouter delta[%d]: %r", chunk_idx, content
+                                    "Groq delta[%d]: %r", chunk_idx, content
                                 )
                                 chunk_idx += 1
 
@@ -360,22 +337,18 @@ Instructions:
                             continue
 
         except httpx.TimeoutException:
-
-            logger.error("OpenRouter request timed out", exc_info=True)
+            logger.error("Groq request timed out", exc_info=True)
             yield "⚠️ Request timed out. Please try again."
 
         except httpx.ConnectError as exc:
-
-            logger.error("OpenRouter connection failed: %s", exc, exc_info=True)
-            yield "⚠️ Cannot connect to OpenRouter. Check your network connection."
+            logger.error("Groq connection failed: %s", exc, exc_info=True)
+            yield "⚠️ Cannot connect to Groq. Check your internet connection."
 
         except httpx.HTTPError as exc:
-
-            logger.error("OpenRouter HTTP error: %s", exc, exc_info=True)
-            yield "⚠️ Network error while contacting OpenRouter. Please try again."
+            logger.error("Groq HTTP error: %s", exc, exc_info=True)
+            yield "⚠️ Network error while contacting Groq. Please try again."
 
         except Exception as exc:
-
             logger.error("Unexpected LLM error: %s", exc, exc_info=True)
             yield "⚠️ An unexpected error occurred. Please try again."
 
@@ -384,16 +357,8 @@ Instructions:
     # =====================================================
 
     def get_available_models(self):
+        return GROQ_MODELS
 
-        return FREE_MODELS
-
-    def set_model(
-        self,
-        model_id: str
-    ):
-
+    def set_model(self, model_id: str):
         self.model = model_id
-
-        logger.info(
-            f"Switched model to: {model_id}"
-        )
+        logger.info("Switched model to: %s", model_id)

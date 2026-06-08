@@ -1,14 +1,16 @@
 # Environment
 .env
+.env.*
 
 # Python
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
+*$py.class
 
 # Virtual Environment
 venv/
 .venv/
+env/
 
 # Logs
 logs/
@@ -17,8 +19,10 @@ logs/
 # Generated Data
 uploads/
 vectorstore/
+chroma_db/
+faiss_index/
 
-# Streamlit Cache
+# Streamlit
 .streamlit/secrets.toml
 
 # OS Files
@@ -28,3 +32,23 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Build
+dist/
+build/
+*.egg-info/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# LangChain / RAG temp files
+.cache/
+
+# SQLite
+*.db
+*.sqlite3
